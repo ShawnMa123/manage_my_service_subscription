@@ -59,7 +59,7 @@ def get_subscriptions(session: Session = Depends(get_session)):
 
 
 @app.post("/api/subscriptions", response_model=Subscription)
-def create_subscription(
+async def create_subscription(
     subscription: SubscriptionCreate,
     session: Session = Depends(get_session)
 ):
@@ -68,6 +68,13 @@ def create_subscription(
     session.add(db_subscription)
     session.commit()
     session.refresh(db_subscription)
+
+    # Send real-time notification
+    try:
+        await telegram_service.send_operation_notification("created", db_subscription)
+    except Exception as e:
+        logger.warning(f"Failed to send creation notification: {e}")
+
     return db_subscription
 
 
@@ -81,7 +88,7 @@ def get_subscription(subscription_id: int, session: Session = Depends(get_sessio
 
 
 @app.put("/api/subscriptions/{subscription_id}", response_model=Subscription)
-def update_subscription(
+async def update_subscription(
     subscription_id: int,
     subscription_update: SubscriptionUpdate,
     session: Session = Depends(get_session)
@@ -91,6 +98,16 @@ def update_subscription(
     if not subscription:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
+    # Store old data for change tracking
+    old_data = {
+        "name": subscription.name,
+        "price": subscription.price,
+        "currency": subscription.currency,
+        "cycle": subscription.cycle,
+        "next_due_date": subscription.next_due_date,
+        "notes": subscription.notes
+    }
+
     update_data = subscription_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(subscription, key, value)
@@ -98,27 +115,56 @@ def update_subscription(
     session.add(subscription)
     session.commit()
     session.refresh(subscription)
+
+    # Send real-time notification with change details
+    try:
+        await telegram_service.send_operation_notification("updated", subscription, old_data)
+    except Exception as e:
+        logger.warning(f"Failed to send update notification: {e}")
+
     return subscription
 
 
 @app.delete("/api/subscriptions/{subscription_id}")
-def delete_subscription(subscription_id: int, session: Session = Depends(get_session)):
+async def delete_subscription(subscription_id: int, session: Session = Depends(get_session)):
     """Delete a specific subscription"""
     subscription = session.get(Subscription, subscription_id)
     if not subscription:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
+    # Store subscription data before deletion for notification
+    subscription_data = Subscription(
+        id=subscription.id,
+        name=subscription.name,
+        price=subscription.price,
+        currency=subscription.currency,
+        cycle=subscription.cycle,
+        next_due_date=subscription.next_due_date,
+        notes=subscription.notes,
+        created_at=subscription.created_at
+    )
+
     session.delete(subscription)
     session.commit()
+
+    # Send real-time notification
+    try:
+        await telegram_service.send_operation_notification("deleted", subscription_data)
+    except Exception as e:
+        logger.warning(f"Failed to send deletion notification: {e}")
+
     return {"message": "Subscription deleted successfully"}
 
 
 @app.post("/api/subscriptions/{subscription_id}/renew", response_model=Subscription)
-def renew_subscription(subscription_id: int, session: Session = Depends(get_session)):
+async def renew_subscription(subscription_id: int, session: Session = Depends(get_session)):
     """Renew a subscription by extending the next due date based on its cycle"""
     subscription = session.get(Subscription, subscription_id)
     if not subscription:
         raise HTTPException(status_code=404, detail="Subscription not found")
+
+    # Store old due date for notification
+    old_due_date = subscription.next_due_date
 
     # Calculate the new due date based on cycle
     current_due_date = subscription.next_due_date
@@ -136,6 +182,12 @@ def renew_subscription(subscription_id: int, session: Session = Depends(get_sess
     session.add(subscription)
     session.commit()
     session.refresh(subscription)
+
+    # Send real-time notification
+    try:
+        await telegram_service.send_operation_notification("renewed", subscription, {"next_due_date": old_due_date})
+    except Exception as e:
+        logger.warning(f"Failed to send renewal notification: {e}")
 
     return subscription
 

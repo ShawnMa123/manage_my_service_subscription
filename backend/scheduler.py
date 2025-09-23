@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 async def check_subscription_reminders():
-    """Check for subscriptions that need reminders and send Telegram notifications"""
+    """Check for subscriptions that need reminders and send batch Telegram notification"""
     logger.info("Starting subscription reminder check")
 
     # Reinitialize Telegram service to get latest settings
     await telegram_service.initialize()
 
     today = datetime.now().date()
+    reminders_to_send = []
 
     with Session(engine) as session:
         # Get all subscriptions
@@ -28,22 +29,20 @@ async def check_subscription_reminders():
         for subscription in subscriptions:
             days_until_due = (subscription.next_due_date - today).days
 
-            # Send reminder for subscriptions due within 3 days (including today)
-            if 0 <= days_until_due <= 3:
-                message = f"🔔 订阅提醒\n\n" \
-                         f"服务名称: {subscription.name}\n" \
-                         f"价格: {subscription.price} {subscription.currency}\n" \
-                         f"续费日期: {subscription.next_due_date}\n" \
-                         f"剩余天数: {days_until_due} 天\n"
+            # Collect subscriptions that need reminders (overdue, due today, or due within 3 days)
+            if days_until_due <= 3:  # Includes overdue (negative), today (0), and upcoming (1-3)
+                reminders_to_send.append(subscription)
+                logger.info(f"Added to reminder batch: {subscription.name} (due in {days_until_due} days)")
 
-                if subscription.notes:
-                    message += f"备注: {subscription.notes}\n"
-
-                success = await telegram_service.send_message(message)
-                if success:
-                    logger.info(f"Reminder sent for subscription: {subscription.name}")
-                else:
-                    logger.error(f"Failed to send reminder for subscription: {subscription.name}")
+        # Send batch reminder if there are any subscriptions to remind about
+        if reminders_to_send:
+            success = await telegram_service.send_batch_reminders(reminders_to_send)
+            if success:
+                logger.info(f"Batch reminder sent successfully for {len(reminders_to_send)} subscriptions")
+            else:
+                logger.error(f"Failed to send batch reminder for {len(reminders_to_send)} subscriptions")
+        else:
+            logger.info("No subscriptions require reminders at this time")
 
     logger.info("Subscription reminder check completed")
 
