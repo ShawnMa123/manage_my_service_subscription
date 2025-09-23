@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/database.db
+      - DATABASE_URL=sqlite:///./data/subscription.db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -38,13 +38,7 @@ services:
     networks:
       - subscription-network
 
-volumes:
-  data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data
+# 不需要额外的volumes定义，直接使用bind mount
 
 networks:
   subscription-network:

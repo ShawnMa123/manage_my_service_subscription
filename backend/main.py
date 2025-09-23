@@ -1,6 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
 from typing import List
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
@@ -9,7 +11,7 @@ from models import (
     Subscription, SubscriptionCreate, SubscriptionUpdate,
     Setting, SettingCreate, SettingUpdate
 )
-from scheduler import scheduler_service
+from scheduler import scheduler_service, check_subscription_reminders
 from telegram_service import telegram_service
 
 # Configure logging
@@ -111,6 +113,33 @@ def delete_subscription(subscription_id: int, session: Session = Depends(get_ses
     return {"message": "Subscription deleted successfully"}
 
 
+@app.post("/api/subscriptions/{subscription_id}/renew", response_model=Subscription)
+def renew_subscription(subscription_id: int, session: Session = Depends(get_session)):
+    """Renew a subscription by extending the next due date based on its cycle"""
+    subscription = session.get(Subscription, subscription_id)
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    # Calculate the new due date based on cycle
+    current_due_date = subscription.next_due_date
+
+    if subscription.cycle == "monthly":
+        new_due_date = current_due_date + relativedelta(months=1)
+    elif subscription.cycle == "quarterly":
+        new_due_date = current_due_date + relativedelta(months=3)
+    elif subscription.cycle == "yearly":
+        new_due_date = current_due_date + relativedelta(years=1)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid subscription cycle")
+
+    subscription.next_due_date = new_due_date
+    session.add(subscription)
+    session.commit()
+    session.refresh(subscription)
+
+    return subscription
+
+
 # Settings endpoints
 @app.get("/api/settings", response_model=List[Setting])
 def get_settings(session: Session = Depends(get_session)):
@@ -181,6 +210,18 @@ async def test_telegram_notification():
             raise HTTPException(status_code=500, detail="Failed to send test message")
     except Exception as e:
         logger.error(f"Error sending test message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Manual reminder check endpoint
+@app.post("/api/reminders/check")
+async def check_reminders():
+    """Manually trigger reminder check for testing"""
+    try:
+        await check_subscription_reminders()
+        return {"status": "success", "message": "Reminder check completed"}
+    except Exception as e:
+        logger.error(f"Error checking reminders: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -28,8 +28,8 @@ async def check_subscription_reminders():
         for subscription in subscriptions:
             days_until_due = (subscription.next_due_date - today).days
 
-            # Send reminder for 7, 3, and 1 days before due date
-            if days_until_due in [7, 3, 1]:
+            # Send reminder for subscriptions due within 3 days (including today)
+            if 0 <= days_until_due <= 3:
                 message = f"🔔 订阅提醒\n\n" \
                          f"服务名称: {subscription.name}\n" \
                          f"价格: {subscription.price} {subscription.currency}\n" \
@@ -53,13 +53,13 @@ class SchedulerService:
         self.scheduler = AsyncIOScheduler()
 
     def start(self):
-        """Start the scheduler with daily reminder check"""
-        # Run every day at 1:00 AM
+        """Start the scheduler with hourly reminder check"""
+        # Run every hour at minute 0
         self.scheduler.add_job(
             check_subscription_reminders,
-            CronTrigger(hour=1, minute=0),
+            CronTrigger(minute=0),
             id="subscription_reminder_check",
-            name="Daily subscription reminder check",
+            name="Hourly subscription reminder check",
             replace_existing=True
         )
 
