@@ -52,6 +52,18 @@
             <div class="notes-section" v-if="subscription.notes">
               <el-text class="notes" type="info" size="small">{{ subscription.notes }}</el-text>
             </div>
+            <div class="actions-section">
+              <el-button
+                type="success"
+                size="small"
+                @click="renewSubscription(subscription)"
+                :loading="renewingId === subscription.id"
+                :disabled="!isNearDue(subscription.next_due_date)"
+              >
+                <el-icon><CreditCard /></el-icon>
+                续费
+              </el-button>
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -129,6 +141,7 @@ export default {
     const submitting = ref(false)
     const editingSubscription = ref(null)
     const formRef = ref()
+    const renewingId = ref(null)
 
     const form = reactive({
       name: '',
@@ -267,6 +280,37 @@ export default {
       return typeMap[cycle] || ''
     }
 
+    const isNearDue = (dateStr) => {
+      const diff = dayjs(dateStr).diff(dayjs(), 'day')
+      return diff <= 3 && diff >= 0  // 3天内且未过期
+    }
+
+    const renewSubscription = async (subscription) => {
+      try {
+        await ElMessageBox.confirm(
+          `确定要续费订阅 "${subscription.name}" 吗？续费后将自动延长一个付费周期。`,
+          '确认续费',
+          {
+            confirmButtonText: '确认续费',
+            cancelButtonText: '取消',
+            type: 'info'
+          }
+        )
+
+        renewingId.value = subscription.id
+        await subscriptionApi.renew(subscription.id)
+        ElMessage.success(`${subscription.name} 续费成功！`)
+        loadSubscriptions()
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('续费失败')
+          console.error(error)
+        }
+      } finally {
+        renewingId.value = null
+      }
+    }
+
     onMounted(() => {
       loadSubscriptions()
     })
@@ -280,10 +324,13 @@ export default {
       formRef,
       form,
       rules,
+      renewingId,
       loadSubscriptions,
       cancelForm,
       submitForm,
       handleCardAction,
+      renewSubscription,
+      isNearDue,
       formatDate,
       getCountdownText,
       getCountdownClass,
@@ -401,6 +448,11 @@ export default {
 
 .notes {
   font-size: 12px;
+}
+
+.actions-section {
+  margin-top: 15px;
+  text-align: center;
 }
 
 .dialog-footer {

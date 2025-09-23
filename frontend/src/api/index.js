@@ -19,7 +19,10 @@ export const subscriptionApi = {
   update: (id, data) => api.put(`/subscriptions/${id}`, data),
 
   // Delete subscription
-  delete: (id) => api.delete(`/subscriptions/${id}`)
+  delete: (id) => api.delete(`/subscriptions/${id}`),
+
+  // Renew subscription
+  renew: (id) => api.post(`/subscriptions/${id}/renew`)
 }
 
 export const settingsApi = {
