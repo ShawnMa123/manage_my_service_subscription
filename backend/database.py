@@ -2,7 +2,10 @@ import os
 from sqlmodel import create_engine, SQLModel, Session
 from models import Subscription, Setting
 
-database_url = os.getenv("DATABASE_URL", "sqlite:///./data/database.db")
+# Get the project root directory (parent of backend folder)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+database_path = os.path.join(project_root, "data", "subscription.db")
+database_url = os.getenv("DATABASE_URL", f"sqlite:///{database_path}")
 engine = create_engine(database_url, echo=True)
 
 

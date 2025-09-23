@@ -169,6 +169,21 @@ def update_setting(
     return setting
 
 
+# Telegram test endpoint
+@app.post("/api/telegram/test")
+async def test_telegram_notification():
+    """Send a test message to verify Telegram configuration"""
+    try:
+        success = await telegram_service.send_test_message()
+        if success:
+            return {"status": "success", "message": "Test message sent successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send test message")
+    except Exception as e:
+        logger.error(f"Error sending test message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Health check endpoint
 @app.get("/health")
 def health_check():

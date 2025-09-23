@@ -36,4 +36,9 @@ export const settingsApi = {
   update: (key, data) => api.put(`/settings/${key}`, data)
 }
 
+export const telegramApi = {
+  // Test Telegram notification
+  test: () => api.post('/telegram/test')
+}
+
 export default api
