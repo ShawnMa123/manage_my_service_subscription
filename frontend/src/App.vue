@@ -56,7 +56,7 @@ export default {
 }
 
 .header-content {
-  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -78,8 +78,8 @@ export default {
 .main-content {
   background-color: #f5f7fa;
   padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: calc(100vh - 60px);
 }
 
 * {
