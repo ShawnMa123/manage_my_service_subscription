@@ -7,6 +7,7 @@ from telegram.error import TelegramError
 from sqlmodel import Session, select
 from database import engine
 from models import Setting, Subscription
+from currency_service import currency_service
 
 logger = logging.getLogger(__name__)
 
@@ -102,20 +103,33 @@ class TelegramService:
                 message_parts.append(f"    💰 {sub.price} {sub.currency} | 周期: {self._get_cycle_text(sub.cycle)}")
             message_parts.append("")
 
-        # Add summary
+        # Add summary with currency conversion
         total_count = len(subscriptions)
-        total_amount = sum(sub.price for sub in subscriptions)
         message_parts.append(f"📊 总计: {total_count} 个订阅需要关注")
-        if total_amount > 0:
-            # Group by currency for summary
+
+        if subscriptions:
+            # Group by currency for original amounts
             currency_totals = {}
             for sub in subscriptions:
                 if sub.currency not in currency_totals:
                     currency_totals[sub.currency] = 0
                 currency_totals[sub.currency] += sub.price
 
+            # Show original amounts by currency
             amount_texts = [f"{amount:.2f} {currency}" for currency, amount in currency_totals.items()]
-            message_parts.append(f"💳 涉及金额: {', '.join(amount_texts)}")
+            message_parts.append(f"💳 原始金额: {', '.join(amount_texts)}")
+
+            # Convert all to CNY and show total
+            try:
+                total_cny = await currency_service.convert_multiple_to_cny(currency_totals)
+                message_parts.append(f"💰 折合人民币: ¥{total_cny:.2f}")
+
+                # Add conversion note if multiple currencies
+                if len(currency_totals) > 1:
+                    message_parts.append("💱 汇率基于实时数据，每小时更新")
+            except Exception as e:
+                logger.warning(f"Currency conversion failed: {e}")
+                message_parts.append(f"💳 涉及金额: {', '.join(amount_texts)}")
 
         message = "\n".join(message_parts)
         return await self.send_message(message)
@@ -143,12 +157,21 @@ class TelegramService:
         message_parts.append(f"⏰ 操作时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         message_parts.append("")
 
+        # Format price with potential CNY conversion
+        price_text = f"{subscription.price} {subscription.currency}"
+        if subscription.currency.upper() != "CNY":
+            try:
+                cny_amount = await currency_service.convert_to_cny(subscription.price, subscription.currency)
+                price_text += f" (≈ ¥{cny_amount:.2f})"
+            except Exception as e:
+                logger.warning(f"Currency conversion failed for notification: {e}")
+
         if operation == "deleted":
             message_parts.append(f"📝 订阅名称: {subscription.name}")
-            message_parts.append(f"💰 价格: {subscription.price} {subscription.currency}")
+            message_parts.append(f"💰 价格: {price_text}")
         else:
             message_parts.append(f"📝 订阅名称: {subscription.name}")
-            message_parts.append(f"💰 价格: {subscription.price} {subscription.currency}")
+            message_parts.append(f"💰 价格: {price_text}")
             message_parts.append(f"🔄 周期: {self._get_cycle_text(subscription.cycle)}")
             message_parts.append(f"📅 下次续费: {subscription.next_due_date}")
 
