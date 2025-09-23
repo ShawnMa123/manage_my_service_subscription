@@ -273,8 +273,11 @@
           <el-input
             v-model="form.notes"
             type="textarea"
-            :rows="2"
-            placeholder="可选"
+            :rows="4"
+            :maxlength="1000"
+            show-word-limit
+            placeholder="可选，最多1000字符"
+            resize="vertical"
           />
         </el-form-item>
       </el-form>

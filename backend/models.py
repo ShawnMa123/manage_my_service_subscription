@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from enum import Enum
 from typing import Optional
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Text
 from pydantic import BaseModel
 
 
@@ -20,7 +20,7 @@ class Subscription(SQLModel, table=True):
     currency: str = Field(default="CNY")
     cycle: CycleEnum
     next_due_date: date
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(default=None, sa_column_kwargs={"type_": Text})
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
