@@ -151,7 +151,7 @@
 <script>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { settingsApi } from '../api'
+import { settingsApi, telegramApi } from '../api'
 
 export default {
   name: 'Settings',
@@ -236,11 +236,15 @@ export default {
         await saveSettings()
 
         // Then test by sending a test message via backend
-        // Note: You might want to add a test endpoint in your backend
+        await telegramApi.test()
         ElMessage.success('测试通知已发送，请检查 Telegram')
       } catch (error) {
         console.error('Failed to test notification:', error)
-        ElMessage.error('测试通知失败')
+        if (error.response?.data?.detail) {
+          ElMessage.error(`测试通知失败: ${error.response.data.detail}`)
+        } else {
+          ElMessage.error('测试通知失败，请检查网络连接和配置')
+        }
       }
       testing.value = false
     }

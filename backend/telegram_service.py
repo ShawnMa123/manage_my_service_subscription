@@ -47,6 +47,12 @@ class TelegramService:
             logger.error(f"Failed to send Telegram message: {e}")
             return False
 
+    async def send_test_message(self) -> bool:
+        """Send a test message to verify Telegram configuration"""
+        await self.initialize()  # Re-initialize to get latest settings
+        test_message = "🔔 测试通知\n\n这是来自订阅管理系统的测试消息。如果您收到此消息，说明 Telegram 通知配置正确！"
+        return await self.send_message(test_message)
+
 
 # Global instance
 telegram_service = TelegramService()
