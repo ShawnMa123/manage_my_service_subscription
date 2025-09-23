@@ -17,7 +17,7 @@
           <el-button type="primary" @click="showAddDialog = true">添加第一个订阅</el-button>
         </el-empty>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="subscription in subscriptions" :key="subscription.id">
+      <el-col :xs="24" :sm="24" :md="12" :lg="8" :xl="6" v-for="subscription in subscriptions" :key="subscription.id">
         <el-card class="subscription-card" shadow="hover">
           <template #header>
             <div class="card-header">
@@ -297,6 +297,9 @@ export default {
 <style scoped>
 .subscription-list {
   padding: 20px 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .header-section {
@@ -404,5 +407,32 @@ export default {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .header-section {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+
+  .header-section h2 {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .subscription-list {
+    padding: 10px 0;
+  }
+
+  .subscription-card {
+    margin-bottom: 15px;
+  }
+
+  .price {
+    font-size: 20px;
+  }
 }
 </style>
