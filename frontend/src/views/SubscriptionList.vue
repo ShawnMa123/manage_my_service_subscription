@@ -2,22 +2,64 @@
   <div class="subscription-list">
     <div class="header-section">
       <h2>订阅列表</h2>
-      <el-button type="primary" @click="showAddDialog = true">
-        <el-icon><Plus /></el-icon>
-        添加订阅
-      </el-button>
+      <div class="header-controls">
+        <!-- 视图切换控件 -->
+        <div class="view-controls">
+          <el-radio-group v-model="viewMode" size="small" @change="onViewModeChange">
+            <el-radio-button label="card">
+              <el-icon><Grid /></el-icon>
+              卡片
+            </el-radio-button>
+            <el-radio-button label="list">
+              <el-icon><List /></el-icon>
+              列表
+            </el-radio-button>
+            <el-radio-button label="table">
+              <el-icon><Menu /></el-icon>
+              表格
+            </el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <!-- 排序控件 -->
+        <div class="sort-controls">
+          <el-select v-model="sortBy" placeholder="排序方式" size="small" style="width: 120px">
+            <el-option label="名称" value="name" />
+            <el-option label="价格" value="price" />
+            <el-option label="到期日" value="next_due_date" />
+            <el-option label="创建时间" value="created_at" />
+          </el-select>
+          <el-button
+            size="small"
+            @click="toggleSortOrder"
+            :icon="sortOrder === 'asc' ? 'sort-up' : 'sort-down'"
+          >
+            {{ sortOrder === 'asc' ? '升序' : '降序' }}
+          </el-button>
+        </div>
+
+        <el-button type="primary" @click="showAddDialog = true">
+          <el-icon><Plus /></el-icon>
+          添加订阅
+        </el-button>
+      </div>
     </div>
 
-    <el-row :gutter="20">
-      <el-col :span="24" v-if="loading">
-        <el-skeleton :rows="5" animated />
-      </el-col>
-      <el-col :span="24" v-else-if="subscriptions.length === 0">
-        <el-empty description="暂无订阅数据">
-          <el-button type="primary" @click="showAddDialog = true">添加第一个订阅</el-button>
-        </el-empty>
-      </el-col>
-      <el-col :xs="24" :sm="24" :md="12" :lg="8" :xl="6" v-for="subscription in subscriptions" :key="subscription.id">
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-container">
+      <el-skeleton :rows="5" animated />
+    </div>
+
+    <!-- 空状态 -->
+    <div v-else-if="sortedSubscriptions.length === 0" class="empty-container">
+      <el-empty description="暂无订阅数据">
+        <el-button type="primary" @click="showAddDialog = true">添加第一个订阅</el-button>
+      </el-empty>
+    </div>
+
+    <!-- 卡片视图 -->
+    <el-row v-else-if="viewMode === 'card'" :gutter="20">
+      <el-col :xs="24" :sm="24" :md="12" :lg="8" :xl="6" v-for="subscription in sortedSubscriptions" :key="subscription.id">
         <el-card class="subscription-card" shadow="hover">
           <template #header>
             <div class="card-header">
@@ -68,6 +110,128 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 列表视图 -->
+    <div v-else-if="viewMode === 'list'" class="list-view">
+      <div class="list-item" v-for="subscription in sortedSubscriptions" :key="subscription.id">
+        <div class="list-item-content">
+          <div class="list-item-main">
+            <div class="list-item-header">
+              <h3 class="list-item-title">{{ subscription.name }}</h3>
+              <div class="list-item-actions">
+                <el-button
+                  type="success"
+                  size="small"
+                  @click="renewSubscription(subscription)"
+                  :loading="renewingId === subscription.id"
+                  :disabled="!isNearDue(subscription.next_due_date)"
+                >
+                  <el-icon><CreditCard /></el-icon>
+                  续费
+                </el-button>
+                <el-dropdown @command="handleCardAction">
+                  <el-button size="small" type="text">
+                    <el-icon><MoreFilled /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item :command="{ action: 'edit', subscription }">编辑</el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'delete', subscription }">删除</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </div>
+            <div class="list-item-info">
+              <div class="list-item-price">
+                <span class="price">{{ subscription.price }}</span>
+                <span class="currency">{{ subscription.currency }}</span>
+                <el-tag :type="getCycleTagType(subscription.cycle)" size="small">
+                  {{ getCycleText(subscription.cycle) }}
+                </el-tag>
+              </div>
+              <div class="list-item-due">
+                <span class="due-label">下次续费:</span>
+                <span class="due-date">{{ formatDate(subscription.next_due_date) }}</span>
+                <span class="countdown" :class="getCountdownClass(subscription.next_due_date)">
+                  {{ getCountdownText(subscription.next_due_date) }}
+                </span>
+              </div>
+              <div class="list-item-notes" v-if="subscription.notes">
+                <el-text type="info" size="small">{{ subscription.notes }}</el-text>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表格视图 -->
+    <el-table v-else-if="viewMode === 'table'" :data="sortedSubscriptions" class="table-view" stripe>
+      <el-table-column prop="name" label="订阅名称" min-width="150">
+        <template #default="{ row }">
+          <strong>{{ row.name }}</strong>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="价格" min-width="120" sortable="custom" prop="price">
+        <template #default="{ row }">
+          <span class="table-price">{{ row.price }} {{ row.currency }}</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="cycle" label="周期" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getCycleTagType(row.cycle)" size="small">
+            {{ getCycleText(row.cycle) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="next_due_date" label="到期日" min-width="140" sortable="custom">
+        <template #default="{ row }">
+          <div>
+            <div>{{ formatDate(row.next_due_date) }}</div>
+            <div class="countdown table-countdown" :class="getCountdownClass(row.next_due_date)">
+              {{ getCountdownText(row.next_due_date) }}
+            </div>
+          </div>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="notes" label="备注" min-width="150">
+        <template #default="{ row }">
+          <el-text v-if="row.notes" type="info" size="small">{{ row.notes }}</el-text>
+          <span v-else class="text-placeholder">-</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="操作" width="180" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            type="success"
+            size="small"
+            @click="renewSubscription(row)"
+            :loading="renewingId === row.id"
+            :disabled="!isNearDue(row.next_due_date)"
+          >
+            <el-icon><CreditCard /></el-icon>
+            续费
+          </el-button>
+          <el-dropdown @command="handleCardAction">
+            <el-button size="small" type="text">
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item :command="{ action: 'edit', subscription: row }">编辑</el-dropdown-item>
+                <el-dropdown-item :command="{ action: 'delete', subscription: row }">删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+      </el-table-column>
+    </el-table>
 
     <!-- Add/Edit Dialog -->
     <el-dialog
@@ -127,7 +291,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { subscriptionApi } from '../api'
 import dayjs from 'dayjs'
@@ -142,6 +306,9 @@ export default {
     const editingSubscription = ref(null)
     const formRef = ref()
     const renewingId = ref(null)
+    const viewMode = ref('card')
+    const sortBy = ref('next_due_date')
+    const sortOrder = ref('asc')
 
     const form = reactive({
       name: '',
@@ -159,6 +326,33 @@ export default {
       cycle: [{ required: true, message: '请选择续费周期', trigger: 'change' }],
       next_due_date: [{ required: true, message: '请选择下次续费日期', trigger: 'change' }]
     }
+
+    // 排序后的订阅列表
+    const sortedSubscriptions = computed(() => {
+      const sorted = [...subscriptions.value].sort((a, b) => {
+        let aValue = a[sortBy.value]
+        let bValue = b[sortBy.value]
+
+        // 特殊处理不同类型的数据
+        if (sortBy.value === 'price') {
+          aValue = parseFloat(aValue) || 0
+          bValue = parseFloat(bValue) || 0
+        } else if (sortBy.value === 'next_due_date' || sortBy.value === 'created_at') {
+          aValue = new Date(aValue)
+          bValue = new Date(bValue)
+        } else if (typeof aValue === 'string') {
+          aValue = aValue.toLowerCase()
+          bValue = bValue.toLowerCase()
+        }
+
+        if (sortOrder.value === 'asc') {
+          return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
+        } else {
+          return aValue < bValue ? 1 : aValue > bValue ? -1 : 0
+        }
+      })
+      return sorted
+    })
 
     const loadSubscriptions = async () => {
       loading.value = true
@@ -335,7 +529,15 @@ export default {
       getCountdownText,
       getCountdownClass,
       getCycleText,
-      getCycleTagType
+      getCycleTagType,
+      viewMode,
+      sortBy,
+      sortOrder,
+      sortedSubscriptions,
+      onViewModeChange: () => {},
+      toggleSortOrder: () => {
+        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+      }
     }
   }
 }
@@ -354,11 +556,31 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
 .header-section h2 {
   margin: 0;
   color: #303133;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.view-controls {
+  display: flex;
+  align-items: center;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .subscription-card {
@@ -461,16 +683,143 @@ export default {
   gap: 10px;
 }
 
+/* 列表视图样式 */
+.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list-item {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.3s;
+}
+
+.list-item:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border-color: #409eff;
+}
+
+.list-item-content {
+  width: 100%;
+}
+
+.list-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.list-item-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.list-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-item-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  align-items: start;
+}
+
+.list-item-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-item-price .price {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.list-item-price .currency {
+  font-size: 14px;
+  color: #909399;
+}
+
+.list-item-due {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.due-label {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.list-item-notes {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+/* 表格视图样式 */
+.table-view {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-price {
+  font-weight: 500;
+  color: #303133;
+}
+
+.table-countdown {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.text-placeholder {
+  color: #c0c4cc;
+  font-style: italic;
+}
+
 /* 响应式样式 */
 @media (max-width: 768px) {
   .header-section {
     flex-direction: column;
-    gap: 15px;
     align-items: stretch;
   }
 
-  .header-section h2 {
-    text-align: center;
+  .header-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-controls,
+  .sort-controls {
+    justify-content: center;
+  }
+
+  .list-item-info {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .list-item-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .list-item-actions {
+    justify-content: center;
   }
 }
 
@@ -485,6 +834,26 @@ export default {
 
   .price {
     font-size: 20px;
+  }
+
+  .header-controls {
+    gap: 10px;
+  }
+
+  .view-controls .el-radio-group {
+    width: 100%;
+  }
+
+  .list-item {
+    padding: 15px;
+  }
+
+  .list-item-title {
+    font-size: 16px;
+  }
+
+  .list-item-price .price {
+    font-size: 18px;
   }
 }
 </style>
