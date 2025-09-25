@@ -8,9 +8,11 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      - "3000:8000"
+      - "${BACKEND_PORT:-3000}:8000"
     environment:
       - DATABASE_URL=sqlite:///./data/subscription.db
+      - TZ=${TZ:-UTC}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -25,7 +27,7 @@ services:
     container_name: subscription-frontend
     restart: unless-stopped
     ports:
-      - "3001:80"
+      - "${FRONTEND_PORT:-3001}:80"
     depends_on:
       backend:
         condition: service_healthy
