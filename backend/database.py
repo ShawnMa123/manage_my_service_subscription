@@ -21,6 +21,13 @@ engine = create_engine(
     connect_args={
         "check_same_thread": False,  # Allow SQLite to be used across threads
         "timeout": 30,  # Connection timeout
+        "pragma_params": {
+            "journal_mode": "WAL",  # Write-Ahead Logging for better concurrency
+            "synchronous": "NORMAL",  # Balance between safety and performance
+            "cache_size": -64000,  # 64MB cache
+            "temp_store": "MEMORY",  # Store temporary tables in memory
+            "mmap_size": 268435456,  # 256MB memory-mapped I/O
+        }
     }
 )
 
