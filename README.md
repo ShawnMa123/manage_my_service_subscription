@@ -279,49 +279,22 @@ git clone <仓库地址>
 cd manage_my_service_subscription
 ```
 
-#### **2. 配置环境变量（可选）**
-```bash
-# 复制环境变量模板
-cp .env.example .env
-
-# 编辑配置文件
-nano .env
-```
-
-**常用配置示例：**
-```bash
-# 自定义端口
-BACKEND_PORT=8080
-FRONTEND_PORT=8000
-
-# 时区配置
-TZ=Asia/Shanghai
-
-# 日志级别
-LOG_LEVEL=WARNING
-```
-
-#### **3. 创建数据目录**
+#### **2. 创建数据目录**
 ```bash
 mkdir -p data
 chmod 755 data
 ```
 
-#### **4. 使用 Docker Compose 部署**
+#### **3. 使用 Docker Compose 部署**
 ```bash
 docker compose up -d
 ```
 
-#### **5. 访问应用**
-- **前端界面**: http://localhost:${FRONTEND_PORT:-3001}
-- **后端 API 文档**: http://localhost:${BACKEND_PORT:-3000}/docs
-- **健康检查**: http://localhost:${BACKEND_PORT:-3000}/health
 
-**默认端口：**
-- 前端：3001
-- 后端：3000
-
-**如果使用自定义端口，请相应调整URL**
+#### **4. 访问应用**
+- **前端界面**: http://localhost:3001
+- **后端 API 文档**: http://localhost:3000/docs
+- **健康检查**: http://localhost:3000/health
 
 ### 🤖 Telegram 机器人配置
 
@@ -412,51 +385,13 @@ npm run preview  # 预览生产构建
 #### **API 文档**
 启动后端服务后，访问 http://localhost:8000/docs 查看由 Swagger UI 提供的交互式 API 文档。
 
-### 🌍 环境变量配置
+### 🌍 环境变量
 
 | 变量名 | 默认值 | 描述 |
 |--------|--------|------|
-| `BACKEND_PORT` | `3000` | 后端API服务端口 |
-| `FRONTEND_PORT` | `3001` | 前端Web服务端口 |
 | `DATABASE_URL` | `sqlite:///./data/subscription.db` | 数据库连接字符串 |
 | `TZ` | `UTC` | 用于调度和日期显示的时区 |
 | `LOG_LEVEL` | `INFO` | 应用程序日志级别 |
-
-**注：** CORS已配置为允许所有来源访问，无需额外配置。
-
-### 🚀 部署到不同环境
-
-#### **开发环境**
-```bash
-# .env
-BACKEND_PORT=8080
-FRONTEND_PORT=3000
-LOG_LEVEL=DEBUG
-```
-
-#### **生产环境**
-```bash
-# .env
-BACKEND_PORT=8000
-FRONTEND_PORT=80
-TZ=Asia/Shanghai
-LOG_LEVEL=WARNING
-```
-
-#### **VPS部署（自定义端口）**
-```bash
-# .env
-BACKEND_PORT=8888
-FRONTEND_PORT=9999
-TZ=Asia/Shanghai
-LOG_LEVEL=INFO
-```
-
-**部署提示：**
-- 生产环境建议设置合适的时区
-- 根据需要调整日志级别
-- 使用反向代理（如Nginx）配置HTTPS
-- CORS已自动配置，支持任何域名访问
 
 ### 📋 系统要求
 

@@ -14,24 +14,6 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
-
-  // Optimized build configuration
-  build: {
-    target: 'es2015',
-    cssCodeSplit: true,
-    sourcemap: false, // Disable sourcemap in production for smaller files
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'element-plus': ['element-plus'],
-          'vue-vendor': ['vue', 'vue-router'],
-        }
-      }
-    },
-    chunkSizeWarningLimit: 600, // Warn for chunks larger than 600kb
-  },
-
-  // Development server configuration
   server: {
     host: '0.0.0.0',
     port: 3000,
@@ -42,16 +24,5 @@ export default defineConfig({
         secure: false,
       }
     }
-  },
-
-  // Optimize dependencies
-  optimizeDeps: {
-    include: [
-      'vue',
-      'vue-router',
-      'element-plus',
-      'axios',
-      'dayjs'
-    ]
   }
 })
