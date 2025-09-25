@@ -3,12 +3,9 @@ from contextlib import asynccontextmanager
 from typing import List
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from database import create_db_and_tables, get_session
 from models import (
     Subscription, SubscriptionCreate, SubscriptionUpdate,
@@ -20,9 +17,6 @@ from telegram_service import telegram_service
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -45,17 +39,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure rate limiter
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-# Configure CORS for flexible deployment without domain restrictions
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for maximum flexibility
-    allow_credentials=False,  # Must be False when using wildcard origins
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -69,9 +59,7 @@ def get_subscriptions(session: Session = Depends(get_session)):
 
 
 @app.post("/api/subscriptions", response_model=Subscription)
-@limiter.limit("10/minute")
 async def create_subscription(
-    request: Request,
     subscription: SubscriptionCreate,
     session: Session = Depends(get_session)
 ):
@@ -100,9 +88,7 @@ def get_subscription(subscription_id: int, session: Session = Depends(get_sessio
 
 
 @app.put("/api/subscriptions/{subscription_id}", response_model=Subscription)
-@limiter.limit("15/minute")
 async def update_subscription(
-    request: Request,
     subscription_id: int,
     subscription_update: SubscriptionUpdate,
     session: Session = Depends(get_session)
@@ -140,8 +126,7 @@ async def update_subscription(
 
 
 @app.delete("/api/subscriptions/{subscription_id}")
-@limiter.limit("10/minute")
-async def delete_subscription(request: Request, subscription_id: int, session: Session = Depends(get_session)):
+async def delete_subscription(subscription_id: int, session: Session = Depends(get_session)):
     """Delete a specific subscription"""
     subscription = session.get(Subscription, subscription_id)
     if not subscription:
@@ -267,8 +252,7 @@ def update_setting(
 
 # Telegram test endpoint
 @app.post("/api/telegram/test")
-@limiter.limit("5/minute")
-async def test_telegram_notification(request: Request):
+async def test_telegram_notification():
     """Send a test message to verify Telegram configuration"""
     try:
         success = await telegram_service.send_test_message()
