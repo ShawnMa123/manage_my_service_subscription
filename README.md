@@ -290,6 +290,7 @@ chmod 755 data
 docker compose up -d
 ```
 
+
 #### **4. 访问应用**
 - **前端界面**: http://localhost:3001
 - **后端 API 文档**: http://localhost:3000/docs
