@@ -44,4 +44,21 @@ export const telegramApi = {
   test: () => api.post('/telegram/test')
 }
 
+export const analyticsApi = {
+  // Get comprehensive analytics data
+  getComprehensive: () => api.get('/analytics/comprehensive'),
+
+  // Get subscription analytics
+  getSubscriptionAnalytics: () => api.get('/analytics/subscription'),
+
+  // Get price trend data
+  getPriceTrend: () => api.get('/analytics/price-trend'),
+
+  // Get creation timeline
+  getCreationTimeline: () => api.get('/analytics/timeline/creation'),
+
+  // Get renewal timeline
+  getRenewalTimeline: () => api.get('/analytics/timeline/renewal')
+}
+
 export default api

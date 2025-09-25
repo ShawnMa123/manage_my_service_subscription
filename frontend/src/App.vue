@@ -18,6 +18,10 @@
               <el-icon><Calendar /></el-icon>
               <span>日历视图</span>
             </el-menu-item>
+            <el-menu-item index="/analytics">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>趋势分析</span>
+            </el-menu-item>
             <el-menu-item index="/settings">
               <el-icon><Setting /></el-icon>
               <span>设置</span>

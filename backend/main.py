@@ -9,10 +9,12 @@ from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
 from models import (
     Subscription, SubscriptionCreate, SubscriptionUpdate,
-    Setting, SettingCreate, SettingUpdate
+    Setting, SettingCreate, SettingUpdate,
+    TrendAnalysis, SubscriptionAnalytics, PriceTrend
 )
 from scheduler import scheduler_service, check_subscription_reminders
 from telegram_service import telegram_service
+from analytics import AnalyticsService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -274,6 +276,62 @@ async def check_reminders():
         return {"status": "success", "message": "Reminder check completed"}
     except Exception as e:
         logger.error(f"Error checking reminders: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 趋势分析端点
+@app.get("/api/analytics/comprehensive", response_model=TrendAnalysis)
+def get_comprehensive_analytics(session: Session = Depends(get_session)):
+    """获取综合趋势分析数据"""
+    try:
+        analytics_service = AnalyticsService(session)
+        return analytics_service.get_comprehensive_analysis()
+    except Exception as e:
+        logger.error(f"Error getting comprehensive analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/subscription", response_model=SubscriptionAnalytics)
+def get_subscription_analytics(session: Session = Depends(get_session)):
+    """获取订阅数据分析"""
+    try:
+        analytics_service = AnalyticsService(session)
+        return analytics_service.get_subscription_analytics()
+    except Exception as e:
+        logger.error(f"Error getting subscription analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/price-trend", response_model=PriceTrend)
+def get_price_trend(session: Session = Depends(get_session)):
+    """获取价格趋势分析"""
+    try:
+        analytics_service = AnalyticsService(session)
+        return analytics_service.get_price_trend()
+    except Exception as e:
+        logger.error(f"Error getting price trend: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/timeline/creation")
+def get_creation_timeline(session: Session = Depends(get_session)):
+    """获取订阅创建时间线"""
+    try:
+        analytics_service = AnalyticsService(session)
+        return analytics_service.get_creation_timeline()
+    except Exception as e:
+        logger.error(f"Error getting creation timeline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/timeline/renewal")
+def get_renewal_timeline(session: Session = Depends(get_session)):
+    """获取续费时间线预测"""
+    try:
+        analytics_service = AnalyticsService(session)
+        return analytics_service.get_renewal_timeline()
+    except Exception as e:
+        logger.error(f"Error getting renewal timeline: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
