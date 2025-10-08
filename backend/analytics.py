@@ -123,37 +123,34 @@ class AnalyticsService:
         monthly_spending = []
         today = date.today()
 
-        # 按货币分组统计
+        # 按货币分组统计（仅统计当前活跃订阅）
         currency_stats = defaultdict(lambda: {'monthly': 0.0, 'yearly': 0.0})
+        for sub in subscriptions:
+            currency_stats[sub.currency]['monthly'] += self.calculate_monthly_cost(sub)
+            currency_stats[sub.currency]['yearly'] += self.calculate_yearly_cost(sub)
 
-        for i in range(12):
+        for i in range(11, -1, -1):  # 从11到0，确保时间顺序正确
             month_date = today.replace(day=1) - relativedelta(months=i)
+            month_end = (month_date + relativedelta(months=1)) - timedelta(days=1)
             month_str = month_date.strftime("%Y-%m")
 
-            # 计算该月的总支出（基于当前活跃订阅）
+            # 计算该月的总支出
             month_total = 0.0
             month_count = 0
 
             for sub in subscriptions:
-                # 只计算在该月之前或该月创建的订阅
-                if sub.created_at.date() <= month_date:
+                # 只计算在该月结束前已创建的订阅
+                if sub.created_at.date() <= month_end:
                     monthly_cost = self.calculate_monthly_cost(sub)
                     month_total += monthly_cost
                     month_count += 1
 
-                    # 累计货币统计
-                    currency_stats[sub.currency]['monthly'] += monthly_cost
-                    currency_stats[sub.currency]['yearly'] += self.calculate_yearly_cost(sub)
-
             monthly_spending.append(MonthlySpending(
                 month=month_str,
-                total_amount=month_total,
+                total_amount=round(month_total, 2),
                 currency="CNY",  # 主要货币，后续可以支持多货币
                 subscription_count=month_count
             ))
-
-        # 反转列表，使时间顺序正确
-        monthly_spending.reverse()
 
         # 计算总成本
         total_monthly = sum(self.calculate_monthly_cost(sub) for sub in subscriptions)
@@ -161,8 +158,8 @@ class AnalyticsService:
 
         return PriceTrend(
             monthly_spending=monthly_spending,
-            total_monthly=total_monthly,
-            total_yearly=total_yearly,
+            total_monthly=round(total_monthly, 2),
+            total_yearly=round(total_yearly, 2),
             currency_breakdown=dict(currency_stats)
         )
 
