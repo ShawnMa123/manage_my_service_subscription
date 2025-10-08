@@ -309,7 +309,7 @@ export default {
     const editingSubscription = ref(null)
     const formRef = ref()
     const renewingId = ref(null)
-    const viewMode = ref('card')
+    const viewMode = ref('table')
     const sortBy = ref('next_due_date')
     const sortOrder = ref('asc')
 
