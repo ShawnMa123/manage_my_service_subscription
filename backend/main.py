@@ -21,6 +21,27 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+async def check_and_send_immediate_reminder(subscription: Subscription):
+    """检查订阅是否即将到期，如果是则立即发送提醒"""
+    from datetime import datetime
+
+    today = datetime.now().date()
+    days_until_due = (subscription.next_due_date - today).days
+
+    # 如果在3天内到期（包括过期、今天、1-3天），发送即时提醒
+    if days_until_due <= 3:
+        logger.info(f"Subscription '{subscription.name}' is due in {days_until_due} days, sending immediate reminder")
+        try:
+            await telegram_service.initialize()
+            success = await telegram_service.send_batch_reminders([subscription])
+            if success:
+                logger.info(f"Immediate reminder sent for subscription: {subscription.name}")
+            else:
+                logger.warning(f"Failed to send immediate reminder for: {subscription.name}")
+        except Exception as e:
+            logger.error(f"Error sending immediate reminder: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -77,6 +98,12 @@ async def create_subscription(
     except Exception as e:
         logger.warning(f"Failed to send creation notification: {e}")
 
+    # Check if subscription is due soon and send immediate reminder
+    try:
+        await check_and_send_immediate_reminder(db_subscription)
+    except Exception as e:
+        logger.warning(f"Failed to check/send immediate reminder: {e}")
+
     return db_subscription
 
 
@@ -123,6 +150,12 @@ async def update_subscription(
         await telegram_service.send_operation_notification("updated", subscription, old_data)
     except Exception as e:
         logger.warning(f"Failed to send update notification: {e}")
+
+    # Check if subscription is due soon and send immediate reminder
+    try:
+        await check_and_send_immediate_reminder(subscription)
+    except Exception as e:
+        logger.warning(f"Failed to check/send immediate reminder: {e}")
 
     return subscription
 
